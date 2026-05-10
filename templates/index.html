@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email Classifier</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: system-ui, sans-serif;
+      background: #131424; color: #fff; display: flex; flex-direction: column;
+      align-items: center; padding: 2rem 1rem;
+    }
+    h1 { margin: 0 0 .25rem; font-size: 2rem; }
+    p.lead { color: rgba(255,255,255,.6); margin: 0 0 2rem; text-align: center; }
+    .card {
+      width: 100%; max-width: 720px; background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 1.5rem;
+    }
+    textarea {
+      width: 100%; min-height: 180px; padding: .75rem; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.3);
+      color: #fff; font-family: inherit; font-size: 1rem; resize: vertical;
+    }
+    button {
+      margin-top: .75rem; background: #F13024; color: #fff; border: 0;
+      border-radius: 999px; padding: .65rem 1.5rem; font-weight: 600;
+      cursor: pointer; transition: filter .2s;
+    }
+    button:hover { filter: brightness(1.1); }
+    .result { margin-top: 1.25rem; }
+    .pred { font-size: 1.5rem; font-weight: 700; }
+    .pred .label { color: #F13024; text-transform: capitalize; }
+    .scores { display: grid; gap: .35rem; margin-top: .75rem; }
+    .row { display: flex; align-items: center; gap: .5rem; font-size: .85rem; }
+    .row .name { width: 100px; text-transform: capitalize; color: rgba(255,255,255,.7); }
+    .bar { flex: 1; height: 6px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: #F13024; }
+    .pct { width: 50px; text-align: right; color: rgba(255,255,255,.5); }
+    footer { margin-top: 2rem; color: rgba(255,255,255,.4); font-size: .85rem; }
+    a { color: #F13024; }
+  </style>
+</head>
+<body>
+  <h1>Email Classifier</h1>
+  <p class="lead">Paste an email body — predicts <em>spam · work · personal · promotions</em>.</p>
+
+  <div class="card">
+    <textarea id="text" placeholder="Paste email text here…"></textarea>
+    <button id="go">Classify</button>
+    <div id="result" class="result"></div>
+  </div>
+
+  <footer>Built by Hemanth Kumar · scikit-learn + Flask</footer>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    $("#go").addEventListener("click", async () => {
+      const text = $("#text").value.trim();
+      if (!text) return;
+      $("#result").innerHTML = "Classifying…";
+      try {
+        const res = await fetch("/api/classify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Request failed");
+        const top = data.scores[0];
+        let html = `<div class="pred">Prediction: <span class="label">${data.prediction}</span> <small style="color:rgba(255,255,255,.5)">(${(top.confidence*100).toFixed(1)}%)</small></div>`;
+        html += '<div class="scores">';
+        for (const s of data.scores) {
+          const pct = (s.confidence*100).toFixed(1);
+          html += `<div class="row"><div class="name">${s.label}</div><div class="bar"><span style="width:${pct}%"></span></div><div class="pct">${pct}%</div></div>`;
+        }
+        html += '</div>';
+        $("#result").innerHTML = html;
+      } catch (e) {
+        $("#result").textContent = "Error: " + e.message;
+      }
+    });
+  </script>
+</body>
+</html>
